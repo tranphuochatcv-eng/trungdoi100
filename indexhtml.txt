@@ -1,0 +1,1725 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Hệ Thống Quản Lý Rạp Chiếu Phim Đẳng Cấp</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cinema: {
+                            red: '#E50914',
+                            darkRed: '#B20710',
+                            gold: '#F59E0B',
+                            dark: '#0A0E17',
+                            card: '#131B2E',
+                            border: '#1E293B',
+                            hover: '#1D2A44'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Chart.js for Admin Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0A0E17; }
+        ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #E50914; }
+        .seat-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; }
+    </style>
+</head>
+<body class="bg-cinema-dark text-slate-100 min-h-screen flex flex-col selection:bg-cinema-red selection:text-white">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-3 pointer-events-none"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-cinema-dark/90 backdrop-blur-md border-b border-cinema-border">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo & Brand -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchView('user')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cinema-red to-cinema-gold flex items-center justify-center shadow-lg shadow-cinema-red/30">
+                    <i class="fa-solid fa-film text-white text-xl"></i>
+                </div>
+                <div>
+                    <span class="text-2xl font-extrabold tracking-wider bg-gradient-to-r from-white via-slate-200 to-cinema-red bg-clip-text text-transparent">CINE<span class="text-cinema-red">MAX</span></span>
+                    <span class="block text-[10px] tracking-widest text-cinema-gold uppercase font-semibold">Cinema Management</span>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-6">
+                <button onclick="switchView('user'); renderHome();" id="nav-home" class="text-sm font-medium hover:text-cinema-red transition text-cinema-red">Trang Chủ</button>
+                <button onclick="switchView('user'); renderMovieList();" id="nav-movies" class="text-sm font-medium text-slate-300 hover:text-cinema-red transition">Danh Sách Phim</button>
+                <button onclick="openMyTicketsModal()" class="text-sm font-medium text-slate-300 hover:text-cinema-red transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-ticket text-cinema-gold"></i> Vé Của Tôi <span id="my-tickets-badge" class="bg-cinema-red text-white text-xs px-1.5 py-0.5 rounded-full font-bold">0</span>
+                </button>
+            </nav>
+
+            <!-- Mode Switcher & Actions -->
+            <div class="flex items-center space-x-3">
+                <button id="mode-switch-btn" onclick="toggleMode()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cinema-card to-cinema-border border border-cinema-border hover:border-cinema-red text-sm font-semibold flex items-center gap-2 shadow transition">
+                    <i id="mode-icon" class="fa-solid fa-user-shield text-cinema-gold"></i>
+                    <span id="mode-text">Giao Diện Admin</span>
+                </button>
+                <button onclick="openMyTicketsModal()" class="md:hidden p-2 rounded-xl bg-cinema-card border border-cinema-border text-cinema-gold">
+                    <i class="fa-solid fa-ticket text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container (User vs Admin) -->
+    <main class="flex-grow">
+        <!-- ================= USER VIEW ================= -->
+        <div id="user-view" class="space-y-10 pb-16">
+            <!-- Hero Banner Slider -->
+            <section class="relative bg-gradient-to-b from-cinema-card to-cinema-dark overflow-hidden border-b border-cinema-border">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    <div class="lg:col-span-7 space-y-6">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cinema-red/10 border border-cinema-red/30 text-cinema-red text-xs font-bold uppercase tracking-wider">
+                            <i class="fa-solid fa-fire"></i> Phim Bom Tấn Đang Hot
+                        </div>
+                        <h1 id="hero-title" class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">ĐẤT RỪNG PHƯƠNG NAM</h1>
+                        <p id="hero-desc" class="text-slate-400 text-sm sm:text-base leading-relaxed line-clamp-3">Hành trình tìm cha đầy gian nan và hào hùng của chú bé An giữa miền sông nước Nam Bộ hào phóng, nghĩa tình.</p>
+                        <div class="flex flex-wrap gap-4 pt-2">
+                            <button onclick="openMovieDetail(1)" class="px-6 py-3.5 rounded-xl bg-gradient-to-r from-cinema-red to-cinema-darkRed text-white font-bold shadow-lg shadow-cinema-red/40 hover:opacity-95 transition flex items-center gap-2">
+                                <i class="fa-solid fa-ticket"></i> Đặt Vé Ngay
+                            </button>
+                            <button onclick="openTrailerModal('https://www.youtube.com/embed/dQw4w9WgXcQ')" class="px-6 py-3.5 rounded-xl bg-cinema-card border border-cinema-border hover:border-slate-500 font-semibold transition flex items-center gap-2">
+                                <i class="fa-solid fa-play text-cinema-red"></i> Xem Trailer
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-5 flex justify-center">
+                        <div class="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl border-2 border-cinema-border group">
+                            <img id="hero-poster" src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=800" alt="Banner" class="w-full h-[400px] object-cover group-hover:scale-105 transition duration-500">
+                            <div class="absolute inset-0 bg-gradient-to-t from-cinema-dark via-transparent to-transparent opacity-80"></div>
+                            <div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+                                <span class="px-3 py-1 bg-cinema-gold text-slate-950 font-extrabold text-xs rounded-lg uppercase">T18 - 120 Phút</span>
+                                <span class="text-cinema-gold font-bold text-sm"><i class="fa-solid fa-star"></i> 9.2/10</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filter & Search Section -->
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl p-4 sm:p-6 shadow-xl flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div class="flex flex-wrap gap-3 items-center w-full md:w-auto">
+                        <button onclick="filterMoviesStatus('all')" id="tab-all" class="px-4 py-2 rounded-xl bg-cinema-red text-white text-sm font-semibold transition">Tất Cả Phim</button>
+                        <button onclick="filterMoviesStatus('now')" id="tab-now" class="px-4 py-2 rounded-xl bg-cinema-dark border border-cinema-border text-slate-300 text-sm font-semibold hover:border-cinema-red transition">Đang Chiếu</button>
+                        <button onclick="filterMoviesStatus('upcoming')" id="tab-upcoming" class="px-4 py-2 rounded-xl bg-cinema-dark border border-cinema-border text-slate-300 text-sm font-semibold hover:border-cinema-red transition">Sắp Chiếu</button>
+                    </div>
+                    <div class="flex flex-wrap gap-3 w-full md:w-auto items-center">
+                        <div class="relative w-full md:w-64">
+                            <i class="fa-solid fa-search absolute left-3.5 top-3.5 text-slate-400 text-sm"></i>
+                            <input type="text" id="search-input" oninput="handleSearch()" placeholder="Tìm tên phim, diễn viên..." class="w-full bg-cinema-dark border border-cinema-border rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-cinema-red">
+                        </div>
+                        <select id="genre-filter" onchange="handleFilterGenre()" class="bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cinema-red">
+                            <option value="">Tất Cả Thể Loại</option>
+                            <option value="Hành Động">Hành Động</option>
+                            <option value="Tình Cảm">Tình Cảm</option>
+                            <option value="Kinh Dị">Kinh Dị</option>
+                            <option value="Hoạt Hình">Hoạt Hình</option>
+                            <option value="Khoa Học Viễn Tưởng">Khoa Học Viễn Tưởng</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Movie Grid Section -->
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 id="movie-section-title" class="text-2xl font-bold tracking-tight flex items-center gap-2">
+                        <i class="fa-solid fa-film text-cinema-red"></i> Danh Sách Phim
+                    </h2>
+                    <span id="movie-count" class="text-xs text-slate-400 font-medium">Hiển thị các phim nổi bật</span>
+                </div>
+                <div id="movies-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Dynamic Movie Cards Rendered Here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- ================= ADMIN DASHBOARD VIEW ================= -->
+        <div id="admin-view" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <!-- Admin Header -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-cinema-card border border-cinema-border p-6 rounded-2xl shadow-xl">
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-extrabold flex items-center gap-3">
+                        <i class="fa-solid fa-chart-line text-cinema-gold"></i> Bảng Điều Khiển Quản Trị
+                    </h1>
+                    <p class="text-sm text-slate-400 mt-1">Quản lý toàn diện rạp chiếu phim, suất chiếu, vé đặt và doanh thu.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="openAddMovieModal()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cinema-red to-cinema-darkRed text-white font-bold text-sm shadow-lg shadow-cinema-red/30 flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> Thêm Phim Mới
+                    </button>
+                    <button onclick="openAddShowtimeModal()" class="px-4 py-2.5 rounded-xl bg-cinema-card border border-cinema-border hover:border-cinema-gold text-slate-200 font-bold text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-calendar-plus text-cinema-gold"></i> Thêm Suất Chiếu
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Stats Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl p-6 shadow-lg flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tổng Doanh Thu</p>
+                        <h3 id="stat-revenue" class="text-2xl font-extrabold text-cinema-gold mt-1">0 VNĐ</h3>
+                        <span class="text-xs text-emerald-400 mt-1 inline-flex items-center gap-1"><i class="fa-solid fa-arrow-trend-up"></i> +12% tháng này</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-cinema-gold/10 border border-cinema-gold/20 flex items-center justify-center text-cinema-gold text-xl">
+                        <i class="fa-solid fa-coins"></i>
+                    </div>
+                </div>
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl p-6 shadow-lg flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vé Đã Bán</p>
+                        <h3 id="stat-tickets" class="text-2xl font-extrabold text-white mt-1">0</h3>
+                        <span class="text-xs text-emerald-400 mt-1 inline-flex items-center gap-1"><i class="fa-solid fa-arrow-trend-up"></i> +8% hôm nay</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-cinema-red/10 border border-cinema-red/20 flex items-center justify-center text-cinema-red text-xl">
+                        <i class="fa-solid fa-ticket"></i>
+                    </div>
+                </div>
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl p-6 shadow-lg flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Suất Chiếu Hôm Nay</p>
+                        <h3 id="stat-showtimes" class="text-2xl font-extrabold text-white mt-1">0</h3>
+                        <span class="text-xs text-slate-400 mt-1 inline-block">Trên 5 phòng chiếu</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-xl">
+                        <i class="fa-solid fa-clapperboard"></i>
+                    </div>
+                </div>
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl p-6 shadow-lg flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Phim Đang Hoạt Động</p>
+                        <h3 id="stat-movies" class="text-2xl font-extrabold text-white mt-1">0</h3>
+                        <span class="text-xs text-slate-400 mt-1 inline-block">Cập nhật liên tục</span>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xl">
+                        <i class="fa-solid fa-film"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tabs Navigation -->
+            <div class="flex border-b border-cinema-border overflow-x-auto">
+                <button onclick="switchAdminTab('movies')" id="admin-tab-movies" class="px-6 py-3 font-bold text-sm border-b-2 border-cinema-red text-cinema-red transition whitespace-nowrap">Quản Lý Phim</button>
+                <button onclick="switchAdminTab('showtimes')" id="admin-tab-showtimes" class="px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-white transition whitespace-nowrap">Quản Lý Suất Chiếu</button>
+                <button onclick="switchAdminTab('bookings')" id="admin-tab-bookings" class="px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-white transition whitespace-nowrap">Quản Lý Đặt Vé</button>
+                <button onclick="switchAdminTab('reports')" id="admin-tab-reports" class="px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-white transition whitespace-nowrap">Báo Cáo Doanh Thu</button>
+            </div>
+
+            <!-- Admin Tab Content: Movies -->
+            <div id="admin-content-movies" class="space-y-6">
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-6 border-b border-cinema-border flex justify-between items-center">
+                        <h3 class="font-bold text-lg">Danh Sách Phim Hệ Thống</h3>
+                        <input type="text" id="admin-search-movie" oninput="renderAdminMovies()" placeholder="Tìm kiếm phim..." class="bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cinema-red w-64">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-cinema-dark/50 border-b border-cinema-border text-xs uppercase text-slate-400">
+                                    <th class="p-4">Poster</th>
+                                    <th class="p-4">Tên Phim</th>
+                                    <th class="p-4">Thể Loại</th>
+                                    <th class="p-4">Thời Lượng</th>
+                                    <th class="p-4">Trạng Thái</th>
+                                    <th class="p-4 text-right">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-movies-tbody" class="divide-y divide-cinema-border text-sm">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tab Content: Showtimes -->
+            <div id="admin-content-showtimes" class="hidden space-y-6">
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-6 border-b border-cinema-border flex justify-between items-center">
+                        <h3 class="font-bold text-lg">Lịch Suất Chiếu Các Rạp</h3>
+                        <button onclick="openAddShowtimeModal()" class="px-3 py-1.5 rounded-lg bg-cinema-red text-white text-xs font-bold"><i class="fa-solid fa-plus"></i> Thêm Suất</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-cinema-dark/50 border-b border-cinema-border text-xs uppercase text-slate-400">
+                                    <th class="p-4">Phim</th>
+                                    <th class="p-4">Rạp Chiếu</th>
+                                    <th class="p-4">Phòng</th>
+                                    <th class="p-4">Giờ Chiếu</th>
+                                    <th class="p-4">Giá Vé</th>
+                                    <th class="p-4 text-right">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-showtimes-tbody" class="divide-y divide-cinema-border text-sm">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tab Content: Bookings -->
+            <div id="admin-content-bookings" class="hidden space-y-6">
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-6 border-b border-cinema-border flex justify-between items-center">
+                        <h3 class="font-bold text-lg">Lịch Sử Đặt Vé Khách Hàng</h3>
+                        <input type="text" id="admin-search-booking" oninput="renderAdminBookings()" placeholder="Tìm mã vé, tên KH..." class="bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-cinema-red w-64">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-cinema-dark/50 border-b border-cinema-border text-xs uppercase text-slate-400">
+                                    <th class="p-4">Mã Vé</th>
+                                    <th class="p-4">Khách Hàng</th>
+                                    <th class="p-4">Phim</th>
+                                    <th class="p-4">Ghế</th>
+                                    <th class="p-4">Tổng Tiền</th>
+                                    <th class="p-4">Trạng Thái</th>
+                                    <th class="p-4 text-right">Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-bookings-tbody" class="divide-y divide-cinema-border text-sm">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Tab Content: Reports -->
+            <div id="admin-content-reports" class="hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-cinema-card border border-cinema-border rounded-2xl p-6 shadow-xl">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-cinema-red"></i> Doanh Thu Theo Phim</h3>
+                        <div class="h-80 flex items-center justify-center">
+                            <canvas id="revenueByMovieChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-cinema-card border border-cinema-border rounded-2xl p-6 shadow-xl">
+                        <h3 class="font-bold text-lg mb-4 flex items-center gap-2"><i class="fa-solid fa-chart-line text-cinema-gold"></i> Doanh Thu 7 Ngày Gần Nhất</h3>
+                        <div class="h-80 flex items-center justify-center">
+                            <canvas id="revenueByDayChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-cinema-card border-t border-cinema-border py-12 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="space-y-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 rounded-lg bg-cinema-red flex items-center justify-center text-white">
+                        <i class="fa-solid fa-film"></i>
+                    </div>
+                    <span class="text-xl font-extrabold tracking-wider">CINE<span class="text-cinema-red">MAX</span></span>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">Hệ thống rạp chiếu phim hiện đại với công nghệ hình ảnh và âm thanh đỉnh cao, mang lại trải nghiệm điện ảnh chân thực nhất.</p>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm text-slate-200 mb-3">Khám Phá</h4>
+                <ul class="space-y-2 text-xs text-slate-400">
+                    <li><a href="#" class="hover:text-cinema-red transition">Phim Đang Chiếu</a></li>
+                    <li><a href="#" class="hover:text-cinema-red transition">Phim Sắp Chiếu</a></li>
+                    <li><a href="#" class="hover:text-cinema-red transition">Suất Chiếu Đặc Biệt</a></li>
+                    <li><a href="#" class="hover:text-cinema-red transition">Sự Kiện & Khuyến Mãi</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm text-slate-200 mb-3">Hỗ Trợ Khách Hàng</h4>
+                <ul class="space-y-2 text-xs text-slate-400">
+                    <li><a href="#" class="hover:text-cinema-red transition">Hướng Dẫn Đặt Vé</a></li>
+                    <li><a href="#" class="hover:text-cinema-red transition">Chính Sách Bảo Mật</a></li>
+                    <li><a href="#" class="hover:text-cinema-red transition">Điều Khoản Sử Dụng</a></li>
+                    <li><a href="#" class="hover:text-cinema-red transition">Liên Hệ Góp Ý</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-bold text-sm text-slate-200 mb-3">Đăng Ký Nhận Tin</h4>
+                <p class="text-xs text-slate-400 mb-3">Nhận thông tin phim mới và ưu đãi độc quyền hàng tuần.</p>
+                <div class="flex gap-2">
+                    <input type="email" placeholder="Email của bạn..." class="bg-cinema-dark border border-cinema-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cinema-red w-full">
+                    <button onclick="showToast('Đăng ký nhận tin thành công!', 'success')" class="px-4 py-2 rounded-xl bg-cinema-red text-white text-xs font-bold hover:bg-cinema-darkRed transition">Gửi</button>
+                </div>
+            </div>
+        </div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 pt-8 border-t border-cinema-border text-center text-xs text-slate-500">
+            &copy; 2026 CineMax Vietnam. All rights reserved. Designed with Cinematic Dark Theme.
+        </div>
+    </footer>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Trailer Modal -->
+    <div id="trailer-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-cinema-card border border-cinema-border w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl relative">
+            <div class="p-4 border-b border-cinema-border flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-play text-cinema-red"></i> Xem Trailer Phim</h3>
+                <button onclick="closeTrailerModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="relative aspect-video w-full bg-black">
+                <iframe id="trailer-iframe" class="w-full h-full" src="" title="Trailer" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movie Detail & Showtime Modal -->
+    <div id="movie-detail-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-cinema-card border border-cinema-border w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl my-8 relative">
+            <button onclick="closeMovieDetail()" class="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-cinema-red transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div id="movie-detail-content">
+                <!-- Dynamically filled -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Booking Flow Modal (Steps 1 to 4) -->
+    <div id="booking-modal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-cinema-card border border-cinema-border w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl my-8 relative flex flex-col max-h-[90vh]">
+            <!-- Booking Header -->
+            <div class="p-5 border-b border-cinema-border flex justify-between items-center bg-cinema-dark/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-cinema-red/10 border border-cinema-red/30 flex items-center justify-center text-cinema-red font-bold">
+                        <i class="fa-solid fa-ticket"></i>
+                    </div>
+                    <div>
+                        <h3 id="booking-modal-title" class="font-bold text-lg">Đặt Vé Trực Tuyến</h3>
+                        <p id="booking-modal-subtitle" class="text-xs text-slate-400">Chọn ghế và dịch vụ bắp nước</p>
+                    </div>
+                </div>
+                <button onclick="closeBookingModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <!-- Booking Stepper Progress -->
+            <div class="px-6 py-4 bg-cinema-dark border-b border-cinema-border flex justify-between items-center text-xs font-semibold">
+                <div id="step-ind-1" class="flex items-center gap-2 text-cinema-red"><span class="w-6 h-6 rounded-full bg-cinema-red text-white flex items-center justify-center font-bold">1</span> Suất Chiếu</div>
+                <div class="h-0.5 flex-grow bg-cinema-border mx-2"></div>
+                <div id="step-ind-2" class="flex items-center gap-2 text-slate-500"><span class="w-6 h-6 rounded-full bg-cinema-border text-slate-300 flex items-center justify-center font-bold">2</span> Chọn Ghế</div>
+                <div class="h-0.5 flex-grow bg-cinema-border mx-2"></div>
+                <div id="step-ind-3" class="flex items-center gap-2 text-slate-500"><span class="w-6 h-6 rounded-full bg-cinema-border text-slate-300 flex items-center justify-center font-bold">3</span> Bắp Nước</div>
+                <div class="h-0.5 flex-grow bg-cinema-border mx-2"></div>
+                <div id="step-ind-4" class="flex items-center gap-2 text-slate-500"><span class="w-6 h-6 rounded-full bg-cinema-border text-slate-300 flex items-center justify-center font-bold">4</span> Thanh Toán</div>
+            </div>
+
+            <!-- Booking Body Content (Steps) -->
+            <div class="p-6 overflow-y-auto flex-grow space-y-6" id="booking-step-content">
+                <!-- Dynamically rendered steps -->
+            </div>
+        </div>
+    </div>
+
+    <!-- My Tickets Modal -->
+    <div id="my-tickets-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-cinema-card border border-cinema-border w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl my-8 relative max-h-[85vh] flex flex-col">
+            <div class="p-5 border-b border-cinema-border flex justify-between items-center bg-cinema-dark/50">
+                <h3 class="font-bold text-lg flex items-center gap-2"><i class="fa-solid fa-ticket text-cinema-gold"></i> Vé Đã Đặt Của Bạn</h3>
+                <button onclick="closeMyTicketsModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="my-tickets-list" class="p-6 overflow-y-auto space-y-4 flex-grow divide-y divide-cinema-border">
+                <!-- Populated via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Add/Edit Movie Modal -->
+    <div id="movie-form-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-cinema-card border border-cinema-border w-full max-w-xl rounded-2xl overflow-hidden shadow-2xl my-8 relative">
+            <div class="p-5 border-b border-cinema-border flex justify-between items-center">
+                <h3 id="movie-form-title" class="font-bold text-lg">Thêm Phim Mới</h3>
+                <button onclick="closeMovieFormModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="movie-form" onsubmit="handleMovieFormSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="form-movie-id">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Tên Phim</label>
+                    <input type="text" id="form-movie-title" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Thể Loại</label>
+                        <select id="form-movie-genre" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red">
+                            <option value="Hành Động">Hành Động</option>
+                            <option value="Tình Cảm">Tình Cảm</option>
+                            <option value="Kinh Dị">Kinh Dị</option>
+                            <option value="Hoạt Hình">Hoạt Hình</option>
+                            <option value="Khoa Học Viễn Tưởng">Khoa Học Viễn Tưởng</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Thời Lượng (Phút)</label>
+                        <input type="number" id="form-movie-duration" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="120">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Trạng Thái</label>
+                        <select id="form-movie-status" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red">
+                            <option value="now">Đang Chiếu</option>
+                            <option value="upcoming">Sắp Chiếu</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Đánh Giá (Rating)</label>
+                        <input type="text" id="form-movie-rating" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="8.5/10">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Link Poster Image URL</label>
+                    <input type="url" id="form-movie-poster" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" placeholder="https://...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Link Trailer YouTube URL</label>
+                    <input type="text" id="form-movie-trailer" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="https://www.youtube.com/embed/dQw4w9WgXcQ">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Mô Tả Phim</label>
+                    <textarea id="form-movie-desc" rows="3" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-cinema-border">
+                    <button type="button" onclick="closeMovieFormModal()" class="px-5 py-2.5 rounded-xl bg-cinema-dark border border-cinema-border text-sm font-semibold hover:border-slate-500">Hủy</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-cinema-red text-white text-sm font-bold shadow-lg shadow-cinema-red/30 hover:bg-cinema-darkRed">Lưu Phim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Add Showtime Modal -->
+    <div id="showtime-form-modal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-cinema-card border border-cinema-border w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl my-8 relative">
+            <div class="p-5 border-b border-cinema-border flex justify-between items-center">
+                <h3 class="font-bold text-lg">Thêm Suất Chiếu Mới</h3>
+                <button onclick="closeShowtimeFormModal()" class="text-slate-400 hover:text-white p-2"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="showtime-form" onsubmit="handleShowtimeFormSubmit(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Chọn Phim</label>
+                    <select id="form-showtime-movie" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red">
+                        <!-- Populated via JS -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Cụm Rạp Chiếu</label>
+                    <select id="form-showtime-cinema" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red">
+                        <option value="CineMax Quận 1 - TP.HCM">CineMax Quận 1 - TP.HCM</option>
+                        <option value="CineMax Vincom Center - Hà Nội">CineMax Vincom Center - Hà Nội</option>
+                        <option value="CineMax Landmark 81 - TP.HCM">CineMax Landmark 81 - TP.HCM</option>
+                        <option value="CineMax Đà Nẵng - Riverside">CineMax Đà Nẵng - Riverside</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Phòng Chiếu</label>
+                        <select id="form-showtime-room" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red">
+                            <option value="Phòng 01 (IMAX)">Phòng 01 (IMAX)</option>
+                            <option value="Phòng 02 (VIP 4DX)">Phòng 02 (VIP 4DX)</option>
+                            <option value="Phòng 03 (Standard)">Phòng 03 (Standard)</option>
+                            <option value="Phòng 04 (Sweetbox)">Phòng 04 (Sweetbox)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Giờ Chiếu</label>
+                        <input type="text" id="form-showtime-time" required placeholder="19:30 - Hôm nay" class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="19:30 - 21:30">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Giá Vé Cơ Bản (VNĐ)</label>
+                    <input type="number" id="form-showtime-price" required class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="95000">
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-cinema-border">
+                    <button type="button" onclick="closeShowtimeFormModal()" class="px-5 py-2.5 rounded-xl bg-cinema-dark border border-cinema-border text-sm font-semibold">Hủy</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-cinema-red text-white text-sm font-bold shadow-lg shadow-cinema-red/30">Tạo Suất Chiếu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT LOGIC ================= -->
+    <script>
+        // Default Mock Data
+        const defaultMovies = [
+            {
+                id: 1,
+                title: "ĐẤT RỪNG PHƯƠNG NAM",
+                genre: "Hành Động",
+                duration: 120,
+                status: "now",
+                rating: "9.2/10",
+                poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&q=80&w=800",
+                trailer: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                description: "Hành trình tìm cha đầy gian nan và hào hùng của chú bé An giữa miền sông nước Nam Bộ hào phóng, nghĩa tình."
+            },
+            {
+                id: 2,
+                title: "MA DẠ HÀ - PHIM KINH DỊ",
+                genre: "Kinh Dị",
+                duration: 105,
+                status: "now",
+                rating: "8.4/10",
+                poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&q=80&w=800",
+                trailer: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                description: "Một nhóm bạn trẻ khám phá căn nhà hoang bên hồ và vô tình giải thoát thế lực siêu nhiên hắc ám."
+            },
+            {
+                id: 3,
+                title: "AVATAR: THE WAY OF WATER",
+                genre: "Khoa Học Viễn Tưởng",
+                duration: 192,
+                status: "now",
+                rating: "9.5/10",
+                poster: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&q=80&w=800",
+                trailer: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                description: "Jake Sully sống cùng gia đình mới thành lập trên hành tinh Pandora, khám phá các vùng biển kỳ vĩ."
+            },
+            {
+                id: 4,
+                title: "HOẠT HÌNH: PUSS IN BOOTS",
+                genre: "Hoạt Hình",
+                duration: 102,
+                status: "upcoming",
+                rating: "8.9/10",
+                poster: "https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&q=80&w=800",
+                trailer: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+                description: "Chú Mèo Đi Hia phát hiện ra đam mê phiêu lưu của mình đã trả giá đắt: anh đã dùng hết 8 trong số 9 mạng sống."
+            }
+        ];
+
+        const defaultShowtimes = [
+            { id: 1, movieId: 1, cinema: "CineMax Quận 1 - TP.HCM", room: "Phòng 01 (IMAX)", time: "10:00 - 12:00", price: 110000 },
+            { id: 2, movieId: 1, cinema: "CineMax Quận 1 - TP.HCM", room: "Phòng 02 (VIP 4DX)", time: "14:30 - 16:30", price: 130000 },
+            { id: 3, movieId: 1, cinema: "CineMax Vincom Center - Hà Nội", room: "Phòng 01 (IMAX)", time: "19:30 - 21:30", price: 150000 },
+            { id: 4, movieId: 2, cinema: "CineMax Landmark 81 - TP.HCM", room: "Phòng 03 (Standard)", time: "18:00 - 19:45", price: 90000 },
+            { id: 5, movieId: 3, cinema: "CineMax Đà Nẵng - Riverside", room: "Phòng 01 (IMAX)", time: "20:00 - 23:12", price: 160000 }
+        ];
+
+        const defaultConcessions = [
+            { id: 'c1', name: 'Combo Solo (1 Bắp vừa + 1 Nước ngọt)', price: 65000, img: 'https://images.unsplash.com/photo-1578849278619-e73505e96105?auto=format&fit=crop&q=80&w=300' },
+            { id: 'c2', name: 'Combo Couple (2 Bắp lớn + 2 Nước ngọt)', price: 115000, img: 'https://images.unsplash.com/photo-1585647347385-253b8109f6b3?auto=format&fit=crop&q=80&w=300' },
+            { id: 'c3', name: 'Bắp Rang Bơ Siêu Lớn (Caramel)', price: 55000, img: 'https://images.unsplash.com/photo-1572935857236-7c0b85293444?auto=format&fit=crop&q=80&w=300' },
+            { id: 'c4', name: 'Nước Ngọt Coca-Cola / Sprite (Lớn)', price: 35000, img: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&q=80&w=300' }
+        ];
+
+        // App State Initialization in localStorage
+        if (!localStorage.getItem('cinemax_movies')) {
+            localStorage.setItem('cinemax_movies', JSON.stringify(defaultMovies));
+        }
+        if (!localStorage.getItem('cinemax_showtimes')) {
+            localStorage.setItem('cinemax_showtimes', JSON.stringify(defaultShowtimes));
+        }
+        if (!localStorage.getItem('cinemax_bookings')) {
+            localStorage.setItem('cinemax_bookings', JSON.stringify([
+                {
+                    id: 'CM98231',
+                    customerName: 'Nguyễn Văn An',
+                    phone: '0901234567',
+                    movieTitle: 'ĐẤT RỪNG PHƯƠNG NAM',
+                    cinema: 'CineMax Quận 1 - TP.HCM',
+                    room: 'Phòng 01 (IMAX)',
+                    time: '19:30 - 21:30',
+                    seats: ['E5', 'E6'],
+                    concessions: [{name: 'Combo Couple', qty: 1, price: 115000}],
+                    total: 415000,
+                    paymentMethod: 'Momo',
+                    date: '2026-06-06 14:20'
+                }
+            ]));
+        }
+
+        // Current active view & booking wizard state
+        let currentMode = 'user'; // 'user' or 'admin'
+        let bookingState = {
+            movieId: null,
+            showtimeId: null,
+            selectedSeats: [],
+            concessions: {}, // id -> qty
+            paymentMethod: 'Momo',
+            customerName: '',
+            customerPhone: '',
+            customerEmail: ''
+        };
+
+        let chartsInstance = {
+            movieChart: null,
+            dayChart: null
+        };
+
+        // On window load
+        window.onload = function() {
+            renderHome();
+            updateMyTicketsBadge();
+        };
+
+        // Toast Notification System
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-emerald-600' : type === 'error' ? 'bg-cinema-red' : 'bg-blue-600';
+            const icon = type === 'success' ? 'fa-circle-check' : type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+            
+            toast.className = `${bg} text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 transform translate-y-5 opacity-0 transition-all duration-300 pointer-events-auto text-sm font-semibold`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-lg"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.remove('translate-y-5', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-5', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Toggle User / Admin Mode
+        function toggleMode() {
+            if (currentMode === 'user') {
+                currentMode = 'admin';
+                document.getElementById('user-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                document.getElementById('mode-text').innerText = 'Giao Diện Khách Hàng';
+                document.getElementById('mode-icon').className = 'fa-solid fa-film text-cinema-red';
+                initAdminDashboard();
+            } else {
+                currentMode = 'user';
+                document.getElementById('admin-view').classList.add('hidden');
+                document.getElementById('user-view').classList.remove('hidden');
+                document.getElementById('mode-text').innerText = 'Giao Diện Admin';
+                document.getElementById('mode-icon').className = 'fa-solid fa-user-shield text-cinema-gold';
+                renderHome();
+            }
+        }
+
+        function switchView(mode) {
+            if (currentMode !== mode) {
+                toggleMode();
+            }
+        }
+
+        // ================= USER FUNCTIONS =================
+        function getMovies() {
+            return JSON.parse(localStorage.getItem('cinemax_movies')) || [];
+        }
+
+        function getShowtimes() {
+            return JSON.parse(localStorage.getItem('cinemax_showtimes')) || [];
+        }
+
+        function getBookings() {
+            return JSON.parse(localStorage.getItem('cinemax_bookings')) || [];
+        }
+
+        function renderHome() {
+            const movies = getMovies();
+            if (movies.length > 0) {
+                // Set Hero to first movie
+                const hero = movies[0];
+                document.getElementById('hero-title').innerText = hero.title;
+                document.getElementById('hero-desc').innerText = hero.description;
+                document.getElementById('hero-poster').src = hero.poster;
+            }
+            renderMovieList();
+        }
+
+        let currentFilterStatus = 'all';
+        let currentGenreFilter = '';
+        let currentSearchQuery = '';
+
+        function filterMoviesStatus(status) {
+            currentFilterStatus = status;
+            ['all', 'now', 'upcoming'].forEach(s => {
+                const btn = document.getElementById(`tab-${s}`);
+                if (s === status) {
+                    btn.className = 'px-4 py-2 rounded-xl bg-cinema-red text-white text-sm font-semibold transition';
+                } else {
+                    btn.className = 'px-4 py-2 rounded-xl bg-cinema-dark border border-cinema-border text-slate-300 text-sm font-semibold hover:border-cinema-red transition';
+                }
+            });
+            renderMovieList();
+        }
+
+        function handleSearch() {
+            currentSearchQuery = document.getElementById('search-input').value.toLowerCase();
+            renderMovieList();
+        }
+
+        function handleFilterGenre() {
+            currentGenreFilter = document.getElementById('genre-filter').value;
+            renderMovieList();
+        }
+
+        function renderMovieList() {
+            const movies = getMovies();
+            const grid = document.getElementById('movies-grid');
+            
+            const filtered = movies.filter(m => {
+                const matchStatus = currentFilterStatus === 'all' || m.status === currentFilterStatus;
+                const matchGenre = !currentGenreFilter || m.genre === currentGenreFilter;
+                const matchSearch = !currentSearchQuery || m.title.toLowerCase().includes(currentSearchQuery) || m.genre.toLowerCase().includes(currentSearchQuery);
+                return matchStatus && matchGenre && matchSearch;
+            });
+
+            document.getElementById('movie-count').innerText = `Hiển thị ${filtered.length} phim`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-16 text-center text-slate-400"><i class="fa-solid fa-film text-4xl mb-3 text-slate-600"></i><p>Không tìm thấy bộ phim phù hợp.</p></div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(m => `
+                <div class="bg-cinema-card border border-cinema-border rounded-2xl overflow-hidden shadow-xl group hover:border-cinema-red/60 transition duration-300 flex flex-col">
+                    <div class="relative aspect-[3/4] overflow-hidden bg-slate-900 cursor-pointer" onclick="openMovieDetail(${m.id})">
+                        <img src="${m.poster}" alt="${m.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" onerror="this.src='https://placehold.co/400x600/131824/FFF?text=CineMax'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-cinema-dark via-transparent to-transparent opacity-80"></div>
+                        <span class="absolute top-3 left-3 px-2.5 py-1 bg-cinema-red text-white font-extrabold text-[10px] rounded-lg uppercase tracking-wider shadow">
+                            ${m.status === 'now' ? 'Đang Chiếu' : 'Sắp Chiếu'}
+                        </span>
+                        <span class="absolute top-3 right-3 px-2 py-1 bg-black/60 backdrop-blur-md text-cinema-gold font-bold text-xs rounded-lg flex items-center gap-1">
+                            <i class="fa-solid fa-star"></i> ${m.rating}
+                        </span>
+                    </div>
+                    <div class="p-5 flex flex-col flex-grow justify-between space-y-4">
+                        <div>
+                            <div class="flex items-center gap-2 text-xs text-cinema-gold font-semibold mb-1">
+                                <span>${m.genre}</span> &bull; <span><i class="fa-regular fa-clock"></i> ${m.duration} phút</span>
+                            </div>
+                            <h3 class="font-bold text-base line-clamp-1 hover:text-cinema-red cursor-pointer transition" onclick="openMovieDetail(${m.id})">${m.title}</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-cinema-border">
+                            <button onclick="openTrailerModal('${m.trailer}')" class="px-3 py-2 rounded-xl bg-cinema-dark border border-cinema-border hover:border-slate-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-play text-cinema-red"></i> Trailer
+                            </button>
+                            <button onclick="startBooking(${m.id})" class="px-3 py-2 rounded-xl bg-cinema-red text-white text-xs font-bold shadow hover:bg-cinema-darkRed flex items-center justify-center gap-1.5 transition">
+                                <i class="fa-solid fa-ticket"></i> Đặt Vé
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Movie Detail Modal
+        function openMovieDetail(movieId) {
+            const movies = getMovies();
+            const movie = movies.find(m => m.id === movieId);
+            if (!movie) return;
+
+            const showtimes = getShowtimes().filter(s => s.movieId === movieId);
+
+            const modalContent = document.getElementById('movie-detail-content');
+            modalContent.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 md:p-8">
+                    <div class="md:col-span-4">
+                        <img src="${movie.poster}" class="w-full rounded-xl shadow-2xl border border-cinema-border aspect-[3/4] object-cover" onerror="this.src='https://placehold.co/400x600/131824/FFF?text=CineMax'">
+                    </div>
+                    <div class="md:col-span-8 space-y-4">
+                        <div class="flex items-center gap-3">
+                            <span class="px-3 py-1 bg-cinema-red text-white text-xs font-bold rounded-full uppercase">${movie.status === 'now' ? 'Đang Chiếu' : 'Sắp Chiếu'}</span>
+                            <span class="text-cinema-gold font-bold text-sm"><i class="fa-solid fa-star"></i> ${movie.rating}</span>
+                        </div>
+                        <h2 class="text-2xl md:text-3xl font-extrabold">${movie.title}</h2>
+                        <div class="flex flex-wrap gap-4 text-sm text-slate-300">
+                            <span><i class="fa-solid fa-film text-cinema-red mr-1"></i> Thể loại: <b>${movie.genre}</b></span>
+                            <span><i class="fa-regular fa-clock text-cinema-red mr-1"></i> Thời lượng: <b>${movie.duration} phút</b></span>
+                        </div>
+                        <p class="text-sm text-slate-400 leading-relaxed">${movie.description}</p>
+                        
+                        <div class="pt-4 border-t border-cinema-border space-y-3">
+                            <h4 class="font-bold text-sm text-cinema-gold"><i class="fa-solid fa-calendar-days"></i> Lịch Chiếu Suất Gần Nhất</h4>
+                            ${showtimes.length === 0 ? '<p class="text-xs text-slate-500">Chưa có suất chiếu nào được cập nhật cho phim này.</p>' : `
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    ${showtimes.map(s => `
+                                        <div class="bg-cinema-dark border border-cinema-border p-3 rounded-xl flex justify-between items-center">
+                                            <div>
+                                                <p class="text-xs font-bold text-white">${s.cinema}</p>
+                                                <p class="text-[11px] text-slate-400">${s.room} &bull; <span class="text-cinema-gold font-semibold">${s.time}</span></p>
+                                            </div>
+                                            <button onclick="closeMovieDetail(); startBookingWithShowtime(${s.id})" class="px-3 py-1.5 bg-cinema-red text-white text-xs font-bold rounded-lg shadow hover:bg-cinema-darkRed">Chọn</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('movie-detail-modal').classList.remove('hidden');
+        }
+
+        function closeMovieDetail() {
+            document.getElementById('movie-detail-modal').classList.add('hidden');
+        }
+
+        // Trailer Modal
+        function openTrailerModal(url) {
+            document.getElementById('trailer-iframe').src = url;
+            document.getElementById('trailer-modal').classList.remove('hidden');
+        }
+
+        function closeTrailerModal() {
+            document.getElementById('trailer-iframe').src = '';
+            document.getElementById('trailer-modal').classList.add('hidden');
+        }
+
+        // ================= BOOKING FLOW (4 STEPS) =================
+        function startBooking(movieId) {
+            bookingState = {
+                movieId: movieId,
+                showtimeId: null,
+                selectedSeats: [],
+                concessions: {},
+                paymentMethod: 'Momo',
+                customerName: '',
+                customerPhone: '',
+                customerEmail: ''
+            };
+            openBookingModal();
+            renderBookingStep1();
+        }
+
+        function startBookingWithShowtime(showtimeId) {
+            const showtimes = getShowtimes();
+            const st = showtimes.find(s => s.id === showtimeId);
+            if (!st) return;
+
+            bookingState = {
+                movieId: st.movieId,
+                showtimeId: st.id,
+                selectedSeats: [],
+                concessions: {},
+                paymentMethod: 'Momo',
+                customerName: '',
+                customerPhone: '',
+                customerEmail: ''
+            };
+            openBookingModal();
+            renderBookingStep2(); // Go straight to seats if showtime chosen
+        }
+
+        function openBookingModal() {
+            document.getElementById('booking-modal').classList.remove('hidden');
+        }
+
+        function closeBookingModal() {
+            document.getElementById('booking-modal').classList.add('hidden');
+        }
+
+        function updateStepperUI(step) {
+            for (let i = 1; i <= 4; i++) {
+                const ind = document.getElementById(`step-ind-${i}`);
+                const span = ind.querySelector('span');
+                if (i < step) {
+                    ind.className = 'flex items-center gap-2 text-emerald-400 font-semibold';
+                    span.className = 'w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold';
+                    span.innerHTML = '<i class="fa-solid fa-check text-xs"></i>';
+                } else if (i === step) {
+                    ind.className = 'flex items-center gap-2 text-cinema-red font-bold';
+                    span.className = 'w-6 h-6 rounded-full bg-cinema-red text-white flex items-center justify-center font-bold';
+                    span.innerText = i;
+                } else {
+                    ind.className = 'flex items-center gap-2 text-slate-500';
+                    span.className = 'w-6 h-6 rounded-full bg-cinema-border text-slate-300 flex items-center justify-center font-bold';
+                    span.innerText = i;
+                }
+            }
+        }
+
+        // Step 1: Select Showtime
+        function renderBookingStep1() {
+            updateStepperUI(1);
+            const movies = getMovies();
+            const movie = movies.find(m => m.id === bookingState.movieId);
+            const showtimes = getShowtimes().filter(s => s.movieId === bookingState.movieId);
+
+            const content = document.getElementById('booking-step-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex items-center gap-4 bg-cinema-dark p-4 rounded-2xl border border-cinema-border">
+                        <img src="${movie.poster}" class="w-16 h-20 object-cover rounded-lg">
+                        <div>
+                            <span class="text-xs text-cinema-gold font-bold uppercase">${movie.genre}</span>
+                            <h4 class="font-extrabold text-lg">${movie.title}</h4>
+                            <p class="text-xs text-slate-400">Vui lòng chọn suất chiếu phù hợp bên dưới</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-sm mb-3 text-slate-200"><i class="fa-solid fa-clock text-cinema-red"></i> Danh Sách Suất Chiếu</h4>
+                        ${showtimes.length === 0 ? '<p class="text-sm text-slate-400 py-4 text-center">Hiện chưa có suất chiếu nào cho phim này. Bạn có thể chọn phim khác hoặc thử lại sau.</p>' : `
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                ${showtimes.map(s => `
+                                    <div onclick="selectShowtime(${s.id})" class="cursor-pointer bg-cinema-dark border ${bookingState.showtimeId === s.id ? 'border-cinema-red bg-cinema-red/10' : 'border-cinema-border hover:border-slate-500'} p-4 rounded-2xl transition space-y-2">
+                                        <div class="flex justify-between items-start">
+                                            <span class="font-bold text-sm text-white">${s.cinema}</span>
+                                            <span class="text-cinema-gold font-extrabold text-sm">${s.price.toLocaleString()} VNĐ</span>
+                                        </div>
+                                        <p class="text-xs text-slate-400"><i class="fa-solid fa-door-open mr-1"></i> ${s.room} &bull; <i class="fa-regular fa-clock ml-2 mr-1"></i> ${s.time}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+                    <div class="flex justify-end pt-4 border-t border-cinema-border">
+                        <button onclick="goToStep2()" ${!bookingState.showtimeId ? 'disabled opacity-50 cursor-not-allowed' : ''} class="px-6 py-3 rounded-xl bg-cinema-red text-white font-bold text-sm shadow hover:bg-cinema-darkRed transition">Tiếp Tục: Chọn Ghế <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectShowtime(id) {
+            bookingState.showtimeId = id;
+            renderBookingStep1();
+        }
+
+        function goToStep2() {
+            if (!bookingState.showtimeId) return;
+            renderBookingStep2();
+        }
+
+        // Step 2: Seat Map
+        function renderBookingStep2() {
+            updateStepperUI(2);
+            const showtimes = getShowtimes();
+            const st = showtimes.find(s => s.id === bookingState.showtimeId);
+
+            // Generate 8 rows (A-H) x 12 cols
+            const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+            
+            const content = document.getElementById('booking-step-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="flex justify-between items-center bg-cinema-dark p-3 rounded-xl border border-cinema-border text-xs">
+                        <span>Suất: <b>${st.time}</b> (${st.room})</span>
+                        <span>Giá vé: <b class="text-cinema-gold">${st.price.toLocaleString()} VNĐ</b></span>
+                    </div>
+
+                    <!-- Screen Indicator -->
+                    <div class="space-y-2">
+                        <div class="w-full h-2 bg-gradient-to-r from-transparent via-cinema-red to-transparent rounded-full shadow-lg shadow-cinema-red/50"></div>
+                        <p class="text-center text-[10px] tracking-widest text-slate-400 uppercase font-semibold">Màn Hình Chiếu (Screen)</p>
+                    </div>
+
+                    <!-- Seat Map Grid -->
+                    <div class="overflow-x-auto py-2">
+                        <div class="min-w-[600px] space-y-2">
+                            ${rows.map(row => `
+                                <div class="flex items-center justify-center gap-2">
+                                    <span class="w-6 text-center text-xs font-bold text-slate-500">${row}</span>
+                                    <div class="grid grid-cols-12 gap-1.5 flex-grow max-w-xl">
+                                        ${Array.from({length: 12}, (_, i) => {
+                                            const seatNum = `${row}${i+1}`;
+                                            const isSelected = bookingState.selectedSeats.includes(seatNum);
+                                            // Mock some sold seats
+                                            const isSold = ['A3', 'A4', 'C7', 'C8', 'E5', 'F10'].includes(seatNum);
+                                            const isVIP = ['D','E','F'].includes(row);
+                                            
+                                            let bg = 'bg-cinema-dark border-cinema-border text-slate-300 hover:border-cinema-red';
+                                            if (isSold) bg = 'bg-slate-800 text-slate-600 border-slate-800 cursor-not-allowed';
+                                            else if (isSelected) bg = 'bg-cinema-red text-white border-cinema-red shadow-lg shadow-cinema-red/50';
+                                            else if (isVIP) bg = 'bg-cinema-card border-cinema-gold/40 text-cinema-gold hover:border-cinema-gold';
+
+                                            return `
+                                                <button ${isSold ? 'disabled' : `onclick="toggleSeat('${seatNum}')"`} class="aspect-square rounded-lg border text-[11px] font-bold flex items-center justify-center transition ${bg}">
+                                                    ${i+1}
+                                                </button>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                    <span class="w-6 text-center text-xs font-bold text-slate-500">${row}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Seat Legend -->
+                    <div class="flex flex-wrap justify-center gap-6 text-xs text-slate-300 pt-2 border-t border-cinema-border">
+                        <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-cinema-dark border border-cinema-border"></div> Trống</div>
+                        <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-cinema-card border border-cinema-gold/50"></div> Ghế VIP</div>
+                        <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-cinema-red"></div> Đang Chọn</div>
+                        <div class="flex items-center gap-2"><div class="w-4 h-4 rounded bg-slate-800"></div> Đã Bán</div>
+                    </div>
+
+                    <div class="flex justify-between items-center pt-4 border-t border-cinema-border">
+                        <button onclick="renderBookingStep1()" class="px-5 py-2.5 rounded-xl bg-cinema-dark border border-cinema-border text-sm font-semibold"><i class="fa-solid fa-arrow-left mr-1"></i> Quay lại</button>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400">Đã chọn: <b id="selected-seats-count" class="text-white">${bookingState.selectedSeats.length}</b> ghế</span>
+                            <button onclick="goToStep3()" ${bookingState.selectedSeats.length === 0 ? 'disabled opacity-50 cursor-not-allowed' : ''} class="ml-4 px-6 py-3 rounded-xl bg-cinema-red text-white font-bold text-sm shadow hover:bg-cinema-darkRed transition">Tiếp Tục: Bắp Nước <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleSeat(seatNum) {
+            const idx = bookingState.selectedSeats.indexOf(seatNum);
+            if (idx > -1) {
+                bookingState.selectedSeats.splice(idx, 1);
+            } else {
+                if (bookingState.selectedSeats.length >= 8) {
+                    showToast('Bạn chỉ có thể đặt tối đa 8 ghế trong 1 lần giao dịch.', 'error');
+                    return;
+                }
+                bookingState.selectedSeats.push(seatNum);
+            }
+            renderBookingStep2();
+        }
+
+        function goToStep3() {
+            if (bookingState.selectedSeats.length === 0) return;
+            renderBookingStep3();
+        }
+
+        // Step 3: Concessions (Bắp nước)
+        function renderBookingStep3() {
+            updateStepperUI(3);
+            const content = document.getElementById('booking-step-content');
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <h4 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-utensils text-cinema-gold"></i> Chọn Combo Bắp Nước Ưu Đãi</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        ${defaultConcessions.map(c => {
+                            const qty = bookingState.concessions[c.id] || 0;
+                            return `
+                                <div class="bg-cinema-dark border border-cinema-border rounded-2xl p-4 flex gap-4 items-center">
+                                    <img src="${c.img}" class="w-20 h-20 rounded-xl object-cover border border-cinema-border">
+                                    <div class="flex-grow space-y-1">
+                                        <h5 class="font-bold text-sm text-white">${c.name}</h5>
+                                        <p class="text-cinema-gold font-extrabold text-sm">${c.price.toLocaleString()} VNĐ</p>
+                                        <div class="flex items-center gap-3 pt-2">
+                                            <button onclick="updateConcessionQty('${c.id}', -1)" class="w-7 h-7 rounded-lg bg-cinema-card border border-cinema-border flex items-center justify-center text-slate-300 hover:border-cinema-red">-</button>
+                                            <span class="font-bold text-sm w-4 text-center">${qty}</span>
+                                            <button onclick="updateConcessionQty('${c.id}', 1)" class="w-7 h-7 rounded-lg bg-cinema-card border border-cinema-border flex items-center justify-center text-slate-300 hover:border-cinema-red">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div class="flex justify-between items-center pt-4 border-t border-cinema-border">
+                        <button onclick="renderBookingStep2()" class="px-5 py-2.5 rounded-xl bg-cinema-dark border border-cinema-border text-sm font-semibold"><i class="fa-solid fa-arrow-left mr-1"></i> Quay lại</button>
+                        <button onclick="goToStep4()" class="px-6 py-3 rounded-xl bg-cinema-red text-white font-bold text-sm shadow hover:bg-cinema-darkRed transition">Tiếp Tục: Thanh Toán <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateConcessionQty(id, delta) {
+            const current = bookingState.concessions[id] || 0;
+            const updated = current + delta;
+            if (updated <= 0) {
+                delete bookingState.concessions[id];
+            } else {
+                bookingState.concessions[id] = updated;
+            }
+            renderBookingStep3();
+        }
+
+        function goToStep4() {
+            renderBookingStep4();
+        }
+
+        // Step 4: Checkout & Payment
+        function renderBookingStep4() {
+            updateStepperUI(4);
+            const showtimes = getShowtimes();
+            const movies = getMovies();
+            const st = showtimes.find(s => s.id === bookingState.showtimeId);
+            const movie = movies.find(m => m.id === bookingState.movieId);
+
+            const ticketsTotal = bookingState.selectedSeats.length * st.price;
+            let concessionsTotal = 0;
+            const concessionsList = [];
+
+            for (const [id, qty] of Object.entries(bookingState.concessions)) {
+                const c = defaultConcessions.find(item => item.id === id);
+                if (c && qty > 0) {
+                    concessionsTotal += c.price * qty;
+                    concessionsList.push({name: c.name, qty, price: c.price * qty});
+                }
+            }
+
+            const grandTotal = ticketsTotal + concessionsTotal;
+
+            const content = document.getElementById('booking-step-content');
+            content.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <div class="md:col-span-7 space-y-4">
+                        <h4 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-user-shield text-cinema-red"></i> Thông Tin Khách Hàng</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Họ và Tên</label>
+                                <input type="text" id="checkout-name" placeholder="Nguyễn Văn A" class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="${bookingState.customerName}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Số Điện Thoại</label>
+                                <input type="tel" id="checkout-phone" placeholder="0901234567" class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="${bookingState.customerPhone}">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Email Nhận Vé Điện Tử</label>
+                                <input type="email" id="checkout-email" placeholder="example@gmail.com" class="w-full bg-cinema-dark border border-cinema-border rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-cinema-red" value="${bookingState.customerEmail}">
+                            </div>
+                        </div>
+
+                        <h4 class="font-bold text-sm text-slate-200 pt-2"><i class="fa-solid fa-credit-card text-cinema-gold"></i> Phương Thức Thanh Toán</h4>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button onclick="setPaymentMethod('Momo')" class="p-3 rounded-xl border ${bookingState.paymentMethod === 'Momo' ? 'border-cinema-red bg-cinema-red/10 text-white' : 'border-cinema-border bg-cinema-dark text-slate-400'} font-semibold text-xs flex flex-col items-center gap-2 transition">
+                                <i class="fa-solid fa-qrcode text-xl text-pink-500"></i> Ví Momo
+                            </button>
+                            <button onclick="setPaymentMethod('ZaloPay')" class="p-3 rounded-xl border ${bookingState.paymentMethod === 'ZaloPay' ? 'border-cinema-red bg-cinema-red/10 text-white' : 'border-cinema-border bg-cinema-dark text-slate-400'} font-semibold text-xs flex flex-col items-center gap-2 transition">
+                                <i class="fa-solid fa-wallet text-xl text-blue-400"></i> ZaloPay
+                            </button>
+                            <button onclick="setPaymentMethod('BankCard')" class="p-3 rounded-xl border ${bookingState.paymentMethod === 'BankCard' ? 'border-cinema-red bg-cinema-red/10 text-white' : 'border-cinema-border bg-cinema-dark text-slate-400'} font-semibold text-xs flex flex-col items-center gap-2 transition">
+                                <i class="fa-solid fa-credit-card text-xl text-cinema-gold"></i> Thẻ Ngân Hàng
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-5 bg-cinema-dark border border-cinema-border p-5 rounded-2xl space-y-4">
+                        <h4 class="font-bold text-sm text-cinema-gold border-b border-cinema-border pb-3">Tóm Tắt Đơn Hàng</h4>
+                        <div class="space-y-2 text-xs">
+                            <p class="font-extrabold text-sm text-white">${movie.title}</p>
+                            <p class="text-slate-400">${st.cinema} &bull; ${st.room}</p>
+                            <p class="text-slate-400">Suất: <b class="text-white">${st.time}</b></p>
+                            <p class="text-slate-400">Ghế chọn: <b class="text-cinema-red">${bookingState.selectedSeats.join(', ')}</b> (${bookingState.selectedSeats.length} vé x ${st.price.toLocaleString()}đ)</p>
+                            ${concessionsList.length > 0 ? `
+                                <div class="pt-2 border-t border-cinema-border space-y-1">
+                                    <p class="font-semibold text-slate-300">Bắp nước:</p>
+                                    ${concessionsList.map(c => `<div class="flex justify-between text-slate-400"><span>${c.name} (x${c.qty})</span><span>${c.price.toLocaleString()}đ</span></div>`).join('')}
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <div class="pt-3 border-t border-cinema-border flex justify-between items-center">
+                            <span class="font-bold text-sm">Tổng Thanh Toán:</span>
+                            <span class="font-extrabold text-lg text-cinema-gold">${grandTotal.toLocaleString()} VNĐ</span>
+                        </div>
+
+                        <!-- Mock QR Code Box -->
+                        <div class="bg-white p-4 rounded-xl flex flex-col items-center justify-center space-y-2 text-slate-950">
+                            <div class="w-32 h-32 bg-slate-900 rounded-lg flex items-center justify-center text-white font-mono text-xs text-center p-2">
+                                [ MOCK QR ${bookingState.paymentMethod} ]<br>Scan to Pay
+                            </div>
+                            <span class="text-[11px] font-semibold text-slate-600">Quét mã QR bằng ứng dụng ${bookingState.paymentMethod}</span>
+                        </div>
+
+                        <button onclick="confirmCheckout(${grandTotal})" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cinema-red to-cinema-darkRed text-white font-bold text-sm shadow-lg shadow-cinema-red/40 hover:opacity-95 transition">
+                            Xác Nhận Thanh Toán & Nhận Vé
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex justify-start pt-4 border-t border-cinema-border">
+                    <button onclick="renderBookingStep3()" class="px-5 py-2.5 rounded-xl bg-cinema-dark border border-cinema-border text-sm font-semibold"><i class="fa-solid fa-arrow-left mr-1"></i> Quay lại</button>
+                </div>
+            `;
+        }
+
+        function setPaymentMethod(method) {
+            bookingState.paymentMethod = method;
+            renderBookingStep4();
+        }
+
+        function confirmCheckout(grandTotal) {
+            const name = document.getElementById('checkout-name').value.trim();
+            const phone = document.getElementById('checkout-phone').value.trim();
+            const email = document.getElementById('checkout-email').value.trim();
+
+            if (!name || !phone) {
+                showToast('Vui lòng nhập đầy đủ họ tên và số điện thoại.', 'error');
+                return;
+            }
+
+            const showtimes = getShowtimes();
+            const movies = getMovies();
+            const st = showtimes.find(s => s.id === bookingState.showtimeId);
+            const movie = movies.find(m => m.id === bookingState.movieId);
+
+            let concessionsList = [];
+            for (const [id, qty] of Object.entries(bookingState.concessions)) {
+                const c = defaultConcessions.find(item => item.id === id);
+                if (c && qty > 0) {
+                    concessionsList.push({name: c.name, qty, price: c.price * qty});
+                }
+            }
+
+            const newBooking = {
+                id: 'CM' + Math.floor(10000 + Math.random() * 90000),
+                customerName: name,
+                phone: phone,
+                email: email,
+                movieTitle: movie.title,
+                cinema: st.cinema,
+                room: st.room,
+                time: st.time,
+                seats: [...bookingState.selectedSeats],
+                concessions: concessionsList,
+                total: grandTotal,
+                paymentMethod: bookingState.paymentMethod,
+                date: new Date().toLocaleString()
+            };
+
+            const bookings = getBookings();
+            bookings.unshift(newBooking);
+            localStorage.setItem('cinemax_bookings', JSON.stringify(bookings));
+
+            closeBookingModal();
+            showToast('Đặt vé thành công! Vé đã được lưu vào mục "Vé Của Tôi".', 'success');
+            updateMyTicketsBadge();
+            openTicketSuccessModal(newBooking);
+        }
+
+        // Ticket Success Modal
+        function openTicketSuccessModal(ticket) {
+            const modalContent = document.getElementById('movie-detail-content');
+            document.getElementById('movie-detail-modal').classList.remove('hidden');
+
+            modalContent.innerHTML = `
+                <div class="p-8 space-y-6 text-center">
+                    <div class="w-16 h-16 bg-emerald-500/20 border border-emerald-500 text-emerald-400 rounded-full flex items-center justify-center mx-auto text-2xl">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-extrabold text-white">Thanh Toán Thành Công!</h3>
+                        <p class="text-xs text-slate-400 mt-1">Mã vé điện tử của bạn đã sẵn sàng</p>
+                    </div>
+
+                    <div class="bg-cinema-dark border border-cinema-border rounded-2xl p-6 text-left max-w-md mx-auto space-y-3">
+                        <div class="flex justify-between text-xs border-b border-cinema-border pb-2">
+                            <span class="text-slate-400">Mã Đặt Vé:</span>
+                            <span class="font-bold text-cinema-gold font-mono">${ticket.id}</span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Khách Hàng:</span>
+                            <span class="font-bold text-white">${ticket.customerName} (${ticket.phone})</span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Phim:</span>
+                            <span class="font-bold text-white">${ticket.movieTitle}</span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Suất Chiếu:</span>
+                            <span class="font-bold text-white">${ticket.time} - ${ticket.room}</span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Rạp:</span>
+                            <span class="font-bold text-white">${ticket.cinema}</span>
+                        </div>
+                        <div class="flex justify-between text-xs">
+                            <span class="text-slate-400">Ghế:</span>
+                            <span class="font-bold text-cinema-red">${ticket.seats.join(', ')}</span>
+                        </div>
+                        <div class="flex justify-between text-xs border-t border-cinema-border pt-2">
+                            <span class="text-slate-400">Tổng Tiền:</span>
+                            <span class="font-extrabold text-cinema-gold">${ticket.total.toLocaleString()} VNĐ</span>
+                        </div>
+                        <div class="pt-4 flex flex-col items-center justify-center bg-white p-3 rounded-xl">
+                            <div class="w-24 h-24 bg-slate-900 rounded flex items-center justify-center text-white text-[10px] text-center font-mono">
+                                [ QR CODE ]<br>${ticket.id}
+                            </div>
+                            <span class="text-[10px] font-semibold text-slate-700 mt-1">Xuất trình mã QR này tại quạt soát vé</span>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center gap-4">
+                        <button onclick="closeMovieDetail()" class="px-6 py-2.5 rounded-xl bg-cinema-red text-white text-xs font-bold">Hoàn Tất</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // My Tickets Modal
+        function openMyTicketsModal() {
+            const bookings = getBookings();
+            const listContainer = document.getElementById('my-tickets-list');
+
+            if (bookings.length === 0) {
+                listContainer.innerHTML = `<div class="py-12 text-center text-slate-400"><i class="fa-solid fa-ticket text-4xl mb-3 text-slate-600"></i><p>Bạn chưa có vé nào được đặt.</p></div>`;
+            } else {
+                listContainer.innerHTML = bookings.map(b => `
+                    <div class="bg-cinema-dark border border-cinema-border p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 bg-cinema-red/20 text-cinema-red font-mono font-bold text-xs rounded">${b.id}</span>
+                                <span class="text-xs text-slate-400">${b.date}</span>
+                            </div>
+                            <h4 class="font-extrabold text-base text-white">${b.movieTitle}</h4>
+                            <p class="text-xs text-slate-300">${b.cinema} &bull; ${b.room} &bull; <b class="text-cinema-gold">${b.time}</b></p>
+                            <p class="text-xs text-slate-400">Ghế: <b class="text-cinema-red">${b.seats.join(', ')}</b> | Khách: ${b.customerName} (${b.phone})</p>
+                        </div>
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="font-extrabold text-cinema-gold text-sm">${b.total.toLocaleString()} VNĐ</span>
+                            <button onclick="openTicketSuccessModal(${JSON.stringify(b).replace(/"/g, '&quot;')})" class="px-3 py-1.5 bg-cinema-card border border-cinema-border hover:border-cinema-red text-xs font-semibold rounded-lg flex items-center gap-1.5">
+                                <i class="fa-solid fa-qrcode text-cinema-red"></i> Xem QR Vé
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            document.getElementById('my-tickets-modal').classList.remove('hidden');
+        }
+
+        function closeMyTicketsModal() {
+            document.getElementById('my-tickets-modal').classList.add('hidden');
+        }
+
+        function updateMyTicketsBadge() {
+            const bookings = getBookings();
+            document.getElementById('my-tickets-badge').innerText = bookings.length;
+        }
+
+
+        // ================= ADMIN DASHBOARD FUNCTIONS =================
+        function initAdminDashboard() {
+            renderAdminStats();
+            renderAdminMovies();
+            renderAdminShowtimes();
+            renderAdminBookings();
+            initCharts();
+        }
+
+        function renderAdminStats() {
+            const movies = getMovies();
+            const showtimes = getShowtimes();
+            const bookings = getBookings();
+
+            let totalRevenue = bookings.reduce((sum, b) => sum + b.total, 0);
+            let totalTickets = bookings.reduce((sum, b) => sum + b.seats.length, 0);
+
+            document.getElementById('stat-revenue').innerText = totalRevenue.toLocaleString() + ' VNĐ';
+            document.getElementById('stat-tickets').innerText = totalTickets;
+            document.getElementById('stat-showtimes').innerText = showtimes.length;
+            document.getElementById('stat-movies').innerText = movies.length;
+        }
+
+        function switchAdminTab(tab) {
+            ['movies', 'showtimes', 'bookings', 'reports'].forEach(t => {
+                const btn = document.getElementById(`admin-tab-${t}`);
+                const content = document.getElementById(`admin-content-${t}`);
+                if (t === tab) {
+                    btn.className = 'px-6 py-3 font-bold text-sm border-b-2 border-cinema-red text-cinema-red transition whitespace-nowrap';
+                    content.classList.remove('hidden');
+                } else {
+                    btn.className = 'px-6 py-3 font-semibold text-sm border-b-2 border-transparent text-slate-400 hover:text-white transition whitespace-nowrap';
+                    content.classList.add('hidden');
+                }
+            });
+            if (tab === 'reports') {
+                updateCharts();
+            }
+        }
+
+        function renderAdminMovies() {
+            const movies = getMovies();
+            const search = document.getElementById('admin-search-movie').value.toLowerCase();
+            const filtered = movies.filter(m => m.title.toLowerCase().includes(search) || m.genre.toLowerCase().includes(search));
+
+            const tbody = document.getElementById('admin-movies-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Không tìm thấy phim nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(m => `
+                <tr class="hover:bg-cinema-card/50 transition">
+                    <td class="p-4"><img src="${m.poster}" class="w-10 h-12 object-cover rounded-lg"></td>
+                    <td class="p-4 font-bold text-white">${m.title}</td>
+                    <td class="p-4 text-slate-300">${m.genre}</td>
+                    <td class="p-4 text-slate-300">${m.duration} phút</td>
+                    <td class="p-4">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold ${m.status === 'now' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-cinema-gold/20 text-cinema-gold'}">
+                            ${m.status === 'now' ? 'Đang Chiếu' : 'Sắp Chiếu'}
+                        </span>
+                    </td>
+                    <td class="p-4 text-right space-x-2">
+                        <button onclick="openEditMovieModal(${m.id})" class="p-2 rounded-lg bg-cinema-card border border-cinema-border text-slate-300 hover:text-white"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteMovie(${m.id})" class="p-2 rounded-lg bg-cinema-red/20 border border-cinema-red/40 text-cinema-red hover:bg-cinema-red hover:text-white transition"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Add / Edit Movie Modal
+        function openAddMovieModal() {
+            document.getElementById('movie-form-title').innerText = 'Thêm Phim Mới';
+            document.getElementById('form-movie-id').value = '';
+            document.getElementById('form-movie-title').value = '';
+            document.getElementById('form-movie-genre').value = 'Hành Động';
+            document.getElementById('form-movie-duration').value = '120';
+            document.getElementById('form-movie-status').value = 'now';
+            document.getElementById('form-movie-rating').value = '8.5/10';
+            document.getElementById('form-movie-poster').value = '';
+            document.getElementById('form-movie-trailer').value = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+            document.getElementById('form-movie-desc').value = '';
+            document.getElementById('movie-form-modal').classList.remove('hidden');
+        }
+
+        function openEditMovieModal(id) {
+            const movies = getMovies();
+            const m = movies.find(item => item.id === id);
+            if (!m) return;
+
+            document.getElementById('movie-form-title').innerText = 'Chỉnh Sửa Thông Tin Phim';
+            document.getElementById('form-movie-id').value = m.id;
+            document.getElementById('form-movie-title').value = m.title;
+            document.getElementById('form-movie-genre').value = m.genre;
+            document.getElementById('form-movie-duration').value = m.duration;
+            document.getElementById('form-movie-status').value = m.status;
+            document.getElementById('form-movie-rating').value = m.rating;
+            document.getElementById('form-movie-poster').value = m.poster;
+            document.getElementById('form-movie-trailer').value = m.trailer;
+            document.getElementById('form-movie-desc').value = m.description;
+            document.getElementById('movie-form-modal').classList.remove('hidden');
+        }
+
+        function closeMovieFormModal() {
+            document.getElementById('movie-form-modal').classList.add('hidden');
+        }
+
+        function handleMovieFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('form-movie-id').value;
+            const title = document.getElementById('form-movie-title').value;
+            const genre = document.getElementById('form-movie-genre').value;
+            const duration = parseInt(document.getElementById('form-movie-duration').value);
+            const status = document.getElementById('form-movie-status').value;
+            const rating = document.getElementById('form-movie-rating').value;
+            const poster = document.getElementById('form-movie-poster').value;
+            const trailer = document.getElementById('form-movie-trailer').value;
+            const description = document.getElementById('form-movie-desc').value;
+
+            let movies = getMovies();
+            if (id) {
+                // Edit
+                movies = movies.map(m => m.id == id ? {...m, title, genre, duration, status, rating, poster, trailer, description} : m);
+                showToast('Cập nhật thông tin phim thành công!', 'success');
+            } else {
+                // Add
+                const newId = movies.length > 0 ? Math.max(...movies.map(m => m.id)) + 1 : 1;
+                movies.push({id: newId, title, genre, duration, status, rating, poster, trailer, description});
+                showToast('Thêm phim mới thành công!', 'success');
+            }
+
+            localStorage.setItem('cinemax_movies', JSON.stringify(movies));
+            closeMovieFormModal();
+            renderAdminMovies();
+            renderAdminStats();
+        }
+
+        function deleteMovie(id) {
+            let movies = getMovies();
+            movies = movies.filter(m => m.id !== id);
+            localStorage.setItem('cinemax_movies', JSON.stringify(movies));
+            showToast('Đã xóa phim khỏi hệ thống.', 'success');
+            renderAdminMovies();
+            renderAdminStats();
+        }
+
+        // Showtimes Management
+        function renderAdminShowtimes() {
+            const showtimes = getShowtimes();
+            const movies = getMovies();
+            const tbody = document.getElementById('admin-showtimes-tbody');
+
+            if (showtimes.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-400">Không có suất chiếu nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = showtimes.map(st => {
+                const movie = movies.find(m => m.id === st.movieId);
+                return `
+                    <tr class="hover:bg-cinema-card/50 transition">
+                        <td class="p-4 font-bold text-white">${movie ? movie.title : 'Phim đã xóa'}</td>
+                        <td class="p-4 text-slate-300">${st.cinema}</td>
+                        <td class="p-4 text-slate-300">${st.room}</td>
+                        <td class="p-4 text-cinema-gold font-semibold">${st.time}</td>
+                        <td class="p-4 text-white font-bold">${st.price.toLocaleString()} VNĐ</td>
+                        <td class="p-4 text-right">
+                            <button onclick="deleteShowtime(${st.id})" class="p-2 rounded-lg bg-cinema-red/20 border border-cinema-red/40 text-cinema-red hover:bg-cinema-red hover:text-white transition"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openAddShowtimeModal() {
+            const movies = getMovies();
+            const select = document.getElementById('form-showtime-movie');
+            select.innerHTML = movies.map(m => `<option value="${m.id}">${m.title}</option>`).join('');
+            document.getElementById('showtime-form-modal').classList.remove('hidden');
+        }
+
+        function closeShowtimeFormModal() {
+            document.getElementById('showtime-form-modal').classList.add('hidden');
+        }
+
+        function handleShowtimeFormSubmit(e) {
+            e.preventDefault();
+            const movieId = parseInt(document.getElementById('form-showtime-movie').value);
+            const cinema = document.getElementById('form-showtime-cinema').value;
+            const room = document.getElementById('form-showtime-room').value;
+            const time = document.getElementById('form-showtime-time').value;
+            const price = parseInt(document.getElementById('form-showtime-price').value);
+
+            let showtimes = getShowtimes();
+            const newId = showtimes.length > 0 ? Math.max(...showtimes.map(s => s.id)) + 1 : 1;
+            showtimes.push({id: newId, movieId, cinema, room, time, price});
+
+            localStorage.setItem('cinemax_showtimes', JSON.stringify(showtimes));
+            closeShowtimeFormModal();
+            showToast('Thêm suất chiếu mới thành công!', 'success');
+            renderAdminShowtimes();
+            renderAdminStats();
+        }
+
+        function deleteShowtime(id) {
+            let showtimes = getShowtimes();
+            showtimes = showtimes.filter(s => s.id !== id);
+            localStorage.setItem('cinemax_showtimes', JSON.stringify(showtimes));
+            showToast('Đã xóa suất chiếu.', 'success');
+            renderAdminShowtimes();
+            renderAdminStats();
+        }
+
+        // Bookings Management
+        function renderAdminBookings() {
+            const bookings = getBookings();
+            const search = document.getElementById('admin-search-booking').value.toLowerCase();
+            const filtered = bookings.filter(b => b.id.toLowerCase().includes(search) || b.customerName.toLowerCase().includes(search) || b.phone.includes(search));
+
+            const tbody = document.getElementById('admin-bookings-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400">Không tìm thấy lịch sử đặt vé nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(b => `
+                <tr class="hover:bg-cinema-card/50 transition">
+                    <td class="p-4 font-mono font-bold text-cinema-gold">${b.id}</td>
+                    <td class="p-4 text-white font-bold">${b.customerName}<br><span class="text-xs text-slate-400 font-normal">${b.phone}</span></td>
+                    <td class="p-4 text-slate-300">${b.movieTitle}<br><span class="text-xs text-slate-500">${b.time}</span></td>
+                    <td class="p-4 text-cinema-red font-bold">${b.seats.join(', ')}</td>
+                    <td class="p-4 font-bold text-white">${b.total.toLocaleString()} VNĐ</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400">Đã Thanh Toán</span></td>
+                    <td class="p-4 text-right">
+                        <button onclick="cancelBooking('${b.id}')" class="p-2 rounded-lg bg-cinema-red/20 border border-cinema-red/40 text-cinema-red hover:bg-cinema-red hover:text-white transition" title="Hủy vé"><i class="fa-solid fa-ban"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function cancelBooking(id) {
+            let bookings = getBookings();
+            bookings = bookings.filter(b => b.id !== id);
+            localStorage.setItem('cinemax_bookings', JSON.stringify(bookings));
+            showToast('Đã hủy vé thành công.', 'success');
+            renderAdminBookings();
+            renderAdminStats();
+            updateMyTicketsBadge();
+        }
+
+        // Charts Initialization
+        function initCharts() {
+            const ctxMovie = document.getElementById('revenueByMovieChart').getContext('2d');
+            const ctxDay = document.getElementById('revenueByDayChart').getContext('2d');
+
+            const movies = getMovies();
+            const bookings = getBookings();
+
+            // Calculate revenue by movie
+            const movieRevenue = {};
+            movies.forEach(m => movieRevenue[m.title] = 0);
+            bookings.forEach(b => {
+                if (movieRevenue[b.movieTitle] !== undefined) {
+                    movieRevenue[b.movieTitle] += b.total;
+                } else {
+                    movieRevenue[b.movieTitle] = b.total;
+                }
+            });
+
+            chartsInstance.movieChart = new Chart(ctxMovie, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(movieRevenue),
+                    datasets: [{
+                        data: Object.values(movieRevenue),
+                        backgroundColor: ['#E50914', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 11 } } }
+                    }
+                }
+            });
+
+            chartsInstance.dayChart = new Chart(ctxDay, {
+                type: 'bar',
+                data: {
+                    labels: ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ Nhật'],
+                    datasets: [{
+                        label: 'Doanh Thu (VNĐ)',
+                        data: [3200000, 4100000, 3900000, 5200000, 8900000, 14200000, 12800000],
+                        backgroundColor: '#E50914',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#94A3B8' }, grid: { color: '#1E293B' } },
+                        y: { ticks: { color: '#94A3B8' }, grid: { color: '#1E293B' } }
+                    }
+                }
+            });
+        }
+
+        function updateCharts() {
+            if (chartsInstance.movieChart && chartsInstance.dayChart) {
+                const movies = getMovies();
+                const bookings = getBookings();
+                const movieRevenue = {};
+                movies.forEach(m => movieRevenue[m.title] = 0);
+                bookings.forEach(b => {
+                    if (movieRevenue[b.movieTitle] !== undefined) {
+                        movieRevenue[b.movieTitle] += b.total;
+                    } else {
+                        movieRevenue[b.movieTitle] = b.total;
+                    }
+                });
+
+                chartsInstance.movieChart.data.labels = Object.keys(movieRevenue);
+                chartsInstance.movieChart.data.datasets[0].data = Object.values(movieRevenue);
+                chartsInstance.movieChart.update();
+            }
+        }
+    </script>
+</body>
+</html>
